@@ -4,28 +4,31 @@ defmodule EsioCi.Builder do
 
   def build do
     receive do
-      {sender, msg, build_id} ->
-        try do
-          Logger.debug "Processing build with id: #{build_id}"
-          :random.seed(:os.timestamp()) 
-          dst = "/tmp/build/#{:random.uniform(666)}"
-          Logger.debug "Create directory #{dst}"
-          File.mkdir_p(dst)
-          Logger.debug "Receive message from #{inspect sender}"
+      {sender, msg, build_id, type} ->
+        case type do
+          "gh" -> Logger.debug "Github"
+          _ -> try do
+            Logger.debug "Processing build with id: #{build_id}"
+            :random.seed(:os.timestamp()) 
+            dst = "/tmp/build/#{:random.uniform(666)}"
+            Logger.debug "Create directory #{dst}"
+            File.mkdir_p(dst)
+            Logger.debug "Receive message from #{inspect sender}"
 
-          {scm, repo_address} = parse_bitbucket(msg)
+            {scm, repo_address} = parse_bitbucket(msg)
 
-          download_sources(scm, repo_address, dst)
-          EsioCi.Common.change_bld_status(build_id, "RUNNING")
-          case run_build(dst) do
-            :ok -> EsioCi.Common.change_bld_status(build_id, "COMPLETED")
-            _   -> EsioCi.Common.change_bld_status(build_id, "FAILED")
-              
+            download_sources(scm, repo_address, dst)
+            EsioCi.Common.change_bld_status(build_id, "RUNNING")
+            case run_build(dst) do
+              :ok -> EsioCi.Common.change_bld_status(build_id, "COMPLETED")
+              _   -> EsioCi.Common.change_bld_status(build_id, "FAILED")
+                
+            end
+
+          rescue
+            e in RuntimeError -> e
+            #Logger.error "Exception!"
           end
-
-        rescue
-          e in RuntimeError -> e
-          #Logger.error "Exception!"
         end
 
     end
