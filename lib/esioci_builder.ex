@@ -6,7 +6,10 @@ defmodule EsioCi.Builder do
     receive do
       {sender, msg, build_id, type} ->
         case type do
-          "gh" -> Logger.debug "Github"
+          "gh" -> Logger.debug "GitHub"
+                  status = parse_github(msg)
+                            |> clone
+                  Logger.info status
           _ -> try do
             Logger.debug "Processing build with id: #{build_id}"
             :random.seed(:os.timestamp()) 
@@ -32,6 +35,22 @@ defmodule EsioCi.Builder do
         end
 
     end
+  end
+
+  def parse_github(req_json) do
+    git_url     = req_json.params["repository"]["git_url"]
+    commit_sha  = req_json.params["head_commit"]["id"]
+    repo_name   = req_json.params["repository"]["full_name"]
+    Logger.debug "Repository url: #{git_url}"
+    Logger.debug "Repository name: #{repo_name}"
+    Logger.debug "Commit sha: #{commit_sha}"
+
+    {:ok, git_url, repo_name, commit_sha}
+  end
+
+  def clone({ok, git_url, repo_name, commit_sha}) do
+    cmd = "git clone #{git_url} /tmp/xxx"
+    EsioCi.Common.run2(cmd, "/tmp")
   end
 
   defp download_sources(scm, repo_address, dst) do
