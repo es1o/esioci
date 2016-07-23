@@ -5,33 +5,34 @@ defmodule EsioCi.Builder do
   def build do
     receive do
       {sender, msg, build_id, type} ->
-        case type do
-          "gh" -> Logger.debug "GitHub"
-                  status = parse_github(msg)
-                            |> clone
-                  Logger.info status
-          _ -> try do
-            Logger.debug "Processing build with id: #{build_id}"
-            :random.seed(:os.timestamp()) 
-            dst = "/tmp/build/#{:random.uniform(666)}"
-            Logger.debug "Create directory #{dst}"
-            File.mkdir_p(dst)
-            Logger.debug "Receive message from #{inspect sender}"
+        try do
+          case type do
+            "gh" -> Logger.debug "Run build from github"
+                    EsioCi.Common.change_bld_status(build_id, "RUNNING")
+                    status = parse_github(msg)
+                              |> clone
+                              |> parse_yaml
+                    EsioCi.Common.change_bld_status(build_id, "COMPLETED")
+                    Logger.info "Build completed"
+            _ ->
+              Logger.debug "Processing build with id: #{build_id}"
+              :random.seed(:os.timestamp()) 
+              dst = "/tmp/build/#{:random.uniform(666)}"
+              Logger.debug "Create directory #{dst}"
+              File.mkdir_p(dst)
+              Logger.debug "Receive message from #{inspect sender}"
 
-            {scm, repo_address} = parse_bitbucket(msg)
+              {scm, repo_address} = parse_bitbucket(msg)
 
-            download_sources(scm, repo_address, dst)
-            EsioCi.Common.change_bld_status(build_id, "RUNNING")
-            case run_build(dst) do
-              :ok -> EsioCi.Common.change_bld_status(build_id, "COMPLETED")
-              _   -> EsioCi.Common.change_bld_status(build_id, "FAILED")
-                
-            end
-
-          rescue
-            e in RuntimeError -> e
-            #Logger.error "Exception!"
+              download_sources(scm, repo_address, dst)
+              EsioCi.Common.change_bld_status(build_id, "RUNNING")
+              case run_build(dst) do
+                :ok -> EsioCi.Common.change_bld_status(build_id, "COMPLETED")
+                _   -> EsioCi.Common.change_bld_status(build_id, "FAILED")
+              end
           end
+        rescue
+          e in RuntimeError -> EsioCi.Common.change_bld_status(build_id, "FAILED")
         end
 
     end
@@ -49,8 +50,22 @@ defmodule EsioCi.Builder do
   end
 
   def clone({ok, git_url, repo_name, commit_sha}) do
-    cmd = "git clone #{git_url} /tmp/xxx"
-    EsioCi.Common.run2(cmd, "/tmp")
+    dst = "/tmp/build"
+    cmd = "git clone #{git_url} #{dst}"
+    EsioCi.Common.run2("rm -rf #{dst}")
+    EsioCi.Common.run2(cmd)
+    {:ok, dst}
+  end
+
+  def parse_yaml({ok, dst}) do
+    #Logger.info ok, git_url, repo_name, commit_sha
+    Logger.debug "Parse yaml file"
+    Logger.info dst
+    [yaml | _] = :yamerl_constr.file("#{dst}/esioci.yaml")
+    [build | _] = :proplists.get_value('build', yaml)
+    build_cmd = :proplists.get_value('exec', build) |> List.to_string
+    EsioCi.Common.run2(build_cmd, dst)
+
   end
 
   defp download_sources(scm, repo_address, dst) do

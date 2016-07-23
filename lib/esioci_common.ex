@@ -39,7 +39,7 @@ defmodule EsioCi.Common do
     end
   end
 
-  def run2(cmd, dir) do
+  def run2(cmd, dir \\ "/tmp") do
     cmd_list = String.split(cmd)
     {stdout, exit_code} = System.cmd(hd(cmd_list), tl(cmd_list), stderr_to_stdout: true, cd: dir)
     if exit_code != 0 do
