@@ -58,7 +58,6 @@ defmodule EsioCi.Builder do
   end
 
   def parse_yaml({ok, dst}) do
-    #Logger.info ok, git_url, repo_name, commit_sha
     Logger.debug "Parse yaml file"
     Logger.info dst
     [yaml | _] = :yamerl_constr.file("#{dst}/esioci.yaml")
