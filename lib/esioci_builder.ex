@@ -9,11 +9,22 @@ defmodule EsioCi.Builder do
           case type do
             "gh" -> Logger.debug "Run build from github"
                     EsioCi.Common.change_bld_status(build_id, "RUNNING")
-                    status = msg
+                    dst = "/tmp/build"
+                    # parse_yaml should return table of command to run build
+                    #status = msg
+                              #|> parse_github
+                              #|> clone
+                              #|> parse_yaml
+                    {:ok, build_cmd, artifacts} = msg
                               |> parse_github
                               |> clone
-                              |> parse_yaml
-                    Logger.debug status
+                              |> parse_yaml2
+                    Logger.debug inspect build_cmd
+                    Logger.debug artifacts
+                    {:ok, build_cmd} |> build
+                    #status = build
+                              #|> run
+                    #Logger.debug status
                     EsioCi.Common.change_bld_status(build_id, "COMPLETED")
                     Logger.info "Build completed"
             "bb" -> Logger.debug "Run build from bitbucket"
@@ -35,6 +46,17 @@ defmodule EsioCi.Builder do
         end
 
     end
+  end
+
+  def build({:ok, build_cmd}) do
+    dst = "/tmp/build"
+    for one_cmd <- build_cmd do
+      cmd = one_cmd |> to_string
+        if EsioCi.Common.run(cmd, dst) != :ok do
+          raise EsioCiBuildFailed
+        end
+    end
+    :ok
   end
 
   def parse_bitbucket(req_json) do
@@ -115,6 +137,24 @@ defmodule EsioCi.Builder do
     else
       Logger.error "yaml file: #{yaml_file} doesn't exist"
       :error
+    end
+  end
+
+  def parse_yaml2({ok, dst}) do
+    Logger.debug "Parse yaml file"
+    yaml_file = "#{dst}/esioci.yaml"
+    Logger.debug yaml_file
+    if File.exists?(yaml_file) do
+      [yaml | _] = :yamerl_constr.file(yaml_file)
+      Logger.debug "YAML from file: #{inspect yaml}"
+      # get artifacts
+      artifacts = yaml |> get_artifacts_from_yaml
+      # get all build commands
+      build_cmd = yaml |> get_bld_cmd_from_yaml
+      {:ok, build_cmd, artifacts}
+    else
+      Logger.error "yaml file: #{yaml_file} doesn't exist"
+      {:error, [], []}
     end
   end
 
