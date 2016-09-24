@@ -48,4 +48,8 @@ defmodule EsioCi.Builder.Tests do
     assert EsioCi.Builder.parse_yaml({:ok, Path.absname("test/no_yaml")}) == {:error, [], []}
   end
 
+  test 'test clone repository' do
+    EsioCi.Builder.clone({:ok, "git://github.com/esioci/esioci", "esioci/esioci", "fake", "/tmp/test_clone"})
+  end
+
 end

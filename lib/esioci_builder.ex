@@ -10,7 +10,7 @@ defmodule EsioCi.Builder do
             "gh" -> Logger.debug "Run build from github"
                     EsioCi.Common.change_bld_status(build_id, "RUNNING")
                     dst = "/tmp/build"
-                    {:ok, build_cmd, artifacts} = msg
+                    {:ok, build_cmd, artifacts} = {:ok, msg, dst}
                               |> parse_github
                               |> clone
                               |> parse_yaml
@@ -65,7 +65,7 @@ defmodule EsioCi.Builder do
     {:ok, git_url, repo_name, commit_sha}
   end
 
-  def parse_github(req_json) do
+  def parse_github({:ok, req_json, dst}) do
     git_url     = req_json.params["repository"]["git_url"]
     commit_sha  = req_json.params["head_commit"]["id"]
     repo_name   = req_json.params["repository"]["full_name"]
@@ -73,14 +73,13 @@ defmodule EsioCi.Builder do
     Logger.debug "Repository name: #{repo_name}"
     Logger.debug "Commit sha: #{commit_sha}"
 
-    {:ok, git_url, repo_name, commit_sha}
+    {:ok, git_url, repo_name, commit_sha, dst}
   end
 
-  def clone({ok, git_url, repo_name, commit_sha}) do
-    dst = "/tmp/build"
+  def clone({:ok, git_url, repo_name, commit_sha, dst}) do
     cmd = "git clone #{git_url} #{dst}"
-    EsioCi.Common.run("rm -rf #{dst}")
-    EsioCi.Common.run(cmd)
+    EsioCi.Common.run("rm -rf #{dst}", "/tmp")
+    EsioCi.Common.run(cmd, dst)
     {:ok, dst}
   end
 
