@@ -25,42 +25,27 @@ defmodule EsioCi.Builder.Tests do
 
   test 'test parse yaml' do
     expect(EsioCi.Common, :run, fn(cmd, dir) -> :ok end)
-    assert EsioCi.Builder.parse_yaml({:ok, Path.absname("test/test_yaml_ok")}) == :ok
+    assert EsioCi.Builder.parse_yaml({:ok, Path.absname("test/test_yaml_ok")}) == {:ok, ['mix deps.get && mix.compile'], nil}
   end
 
   test 'test parse yaml with more than one exec' do
     expect(EsioCi.Common, :run, fn(cmd, dir) -> :ok end)
-    assert EsioCi.Builder.parse_yaml({:ok, Path.absname("test/test_yaml_two_execs")}) == :ok
-  end
-
-  test 'test parse yaml 2' do
-    expect(EsioCi.Common, :run, fn(cmd, dir) -> :ok end)
-    assert EsioCi.Builder.parse_yaml2({:ok, Path.absname("test/test_yaml_ok")}) == {:ok, ['mix deps.get && mix.compile'], nil}
-  end
-
-  test 'test parse yaml 2 with more than one exec' do
-    expect(EsioCi.Common, :run, fn(cmd, dir) -> :ok end)
-    assert EsioCi.Builder.parse_yaml2({:ok, Path.absname("test/test_yaml_two_execs")}) == {:ok, ['mix deps.get', 'mix.compile'], nil}
-  end
-
-  test 'test parse yaml 2 with artifacts' do
-    expect(EsioCi.Common, :run, fn(cmd, dir) -> :ok end)
-    assert EsioCi.Builder.parse_yaml2({:ok, Path.absname("test/test_yaml_artifacts")}) == {:ok, ['mix deps.get && mix.compile'], "test_file"}
+    assert EsioCi.Builder.parse_yaml({:ok, Path.absname("test/test_yaml_two_execs")}) == {:ok, ['mix deps.get', 'mix.compile'], nil}
   end
 
   test 'test parse yaml with artifacts' do
     expect(EsioCi.Common, :run, fn(cmd, dir) -> :ok end)
-    assert EsioCi.Builder.parse_yaml({:ok, Path.absname("test/test_yaml_artifacts")}) == :ok
+    assert EsioCi.Builder.parse_yaml({:ok, Path.absname("test/test_yaml_artifacts")}) == {:ok, ['mix deps.get && mix.compile'], "test_file"}
   end
 
   test 'test parse broken yaml' do
     expect(EsioCi.Common, :run, fn(cmd, dir) -> :ok end)
     assert_raise MatchError, fn -> EsioCi.Builder.parse_yaml({:ok, Path.absname("test/test_yaml_broken")}) end
   end
-
-  test 'test parse broken yaml 2' do
-    expect(EsioCi.Common, :run, fn(cmd, dir) -> :ok end)
-    assert_raise MatchError, fn -> EsioCi.Builder.parse_yaml2({:ok, Path.absname("test/test_yaml_broken")}) end
-  end
   
+  test 'test parse nonexisting yaml' do
+    expect(EsioCi.Common, :run, fn(cmd, dir) -> :ok end)
+    assert EsioCi.Builder.parse_yaml({:ok, Path.absname("test/no_yaml")}) == {:error, [], []}
+  end
+
 end

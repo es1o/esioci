@@ -10,30 +10,25 @@ defmodule EsioCi.Builder do
             "gh" -> Logger.debug "Run build from github"
                     EsioCi.Common.change_bld_status(build_id, "RUNNING")
                     dst = "/tmp/build"
-                    # parse_yaml should return table of command to run build
-                    #status = msg
-                              #|> parse_github
-                              #|> clone
-                              #|> parse_yaml
                     {:ok, build_cmd, artifacts} = msg
                               |> parse_github
                               |> clone
-                              |> parse_yaml2
+                              |> parse_yaml
                     Logger.debug inspect build_cmd
                     Logger.debug artifacts
                     {:ok, build_cmd} |> build
-                    #status = build
-                              #|> run
-                    #Logger.debug status
                     EsioCi.Common.change_bld_status(build_id, "COMPLETED")
                     Logger.info "Build completed"
             "bb" -> Logger.debug "Run build from bitbucket"
                     EsioCi.Common.change_bld_status(build_id, "RUNNING")
-                    status = msg
-                              |> parse_bitbucket
+                    dst = "/tmp/build"
+                    {:ok, build_cmd, artifacts} = msg
+                              |> parse_github
                               |> clone
                               |> parse_yaml
-                    Logger.debug status
+                    Logger.debug inspect build_cmd
+                    Logger.debug artifacts
+                    {:ok, build_cmd} |> build
                     EsioCi.Common.change_bld_status(build_id, "COMPLETED")
                     Logger.info "Build completed"
             _ ->
@@ -90,57 +85,6 @@ defmodule EsioCi.Builder do
   end
 
   def parse_yaml({ok, dst}) do
-    Logger.debug "Parse yaml file"
-    yaml_file = "#{dst}/esioci.yaml"
-    Logger.debug yaml_file
-    if File.exists?(yaml_file) do
-      try do
-        [yaml | _] = :yamerl_constr.file(yaml_file)
-        Logger.debug "YAML from file: #{inspect yaml}"
-        # get artifacts
-        artifacts = yaml |> get_artifacts_from_yaml
-        # get all build commands
-        build_cmd = yaml |> get_bld_cmd_from_yaml
-        Logger.debug "Build cmd: #{build_cmd}"
-        if build_cmd != :error and is_list(build_cmd) do
-          # check if build_cmd is a string
-          if is_integer(List.first(build_cmd)) do
-            cmd = build_cmd |> to_string
-            if EsioCi.Common.run(cmd, dst) != :ok do
-              raise EsioCiBuildFailed
-            end
-          else
-            for one_cmd <- build_cmd do
-              cmd = one_cmd |> to_string
-              if EsioCi.Common.run(cmd, dst) != :ok do
-                raise EsioCiBuildFailed
-              end
-            end
-          end
-        else
-          Logger.error "Error get build_cmd from yaml"
-          raise MatchError
-          :error
-        end
-        if artifacts != nil do
-          copy_artifacts(artifacts)
-        end
-        :ok
-      rescue
-        e in EsioCiBuildFailed -> Logger.error "Build Failed"
-                                  raise EsioCiBuildFailed
-        e -> Logger.error "Error parsing yaml"
-                           raise MatchError
-        #e in Protocol.UndefinedError -> Logger.error "Error parsing yaml"
-                            #:error
-      end
-    else
-      Logger.error "yaml file: #{yaml_file} doesn't exist"
-      :error
-    end
-  end
-
-  def parse_yaml2({ok, dst}) do
     Logger.debug "Parse yaml file"
     yaml_file = "#{dst}/esioci.yaml"
     Logger.debug yaml_file
